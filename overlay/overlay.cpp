@@ -191,7 +191,7 @@ struct surface {
     uint32_t uploaded = 0, texture_height = 0;
     bool dragging = false, focused = false, hovered = false;
     int last_x = -9999, last_y = -9999;
-    bool open = false, moving = false;
+    bool open = false, was_open = false, moving = false;
     lab_live::controls live;
     nr_live::controls nr;
     ULONGLONG telemetry_at = 0;
@@ -379,9 +379,16 @@ void compact_draw(reshade::api::effect_runtime *runtime) {
     s.open = true; s.position = ImVec2(0, 0);
 #endif
     if (s.open && runtime->is_key_pressed(VK_ESCAPE)) { s.open = false; runtime->block_input_next_frame(); }
+    if (s.open != s.was_open) {
+        s.was_open = s.open;
+        if (s.bridge.connected()) {
+            s.bridge.send(6, 0, 0, s.open ? 1 : 0);
+        }
+    }
     if (!s.open) {
-        if (s.bridge.connected()) { s.bridge.send(6, 0, 0); s.bridge.poll(); s.bridge.disconnect(); }
-        release_texture(runtime, s); s.dragging = s.moving = s.focused = false; s.last_status.clear(); return;
+        if (s.bridge.connected()) { s.bridge.poll(); }
+        s.dragging = s.moving = s.focused = false;
+        return;
     }
     auto &io = ImGui::GetIO();
 #ifndef LAB_OVERLAY_SMOKE
